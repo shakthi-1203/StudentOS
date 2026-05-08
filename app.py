@@ -25,17 +25,17 @@ while True:
                 if line:
                     data = json.loads(line)
                     if data.get("event") == "message":
-                        # Fix Timezone: Convert UTC server time to IST (+5 hours 30 mins)
+                        # Convert UTC server time to local time (+5 hours 30 mins)
                         utc_time = datetime.utcfromtimestamp(data["time"])
                         ist_time = utc_time + timedelta(hours=5, minutes=30)
                         
-                        # Format to look like "04:22 PM"
                         t = ist_time.strftime('%I:%M:%S %p') 
                         c = int(data["message"])
                         data_list.append({"Timestamp": t, "Count": c})
             
             if data_list:
-                df = pd.DataFrame(data_list).iloc[::-1].reset_index(drop=True)
+                # Keep chronological order for the graph (Oldest -> Newest)
+                df = pd.DataFrame(data_list)
                 
                 df['Smooth_Count'] = df['Count'].rolling(window=3).mean().fillna(df['Count']).round(1)
                 
@@ -54,7 +54,8 @@ while True:
                 st.area_chart(chart_data['Smooth_Count'], color="#00d1b2")
                 
                 st.write("📝 Recent Activity Log:")
-                display_df = df.tail(5)[['Timestamp', 'Count', 'Smooth_Count']].copy()
+                # FIXED: Grab the newest 5 rows and flip them so the absolute newest is at the very top!
+                display_df = df.tail(5)[['Timestamp', 'Count', 'Smooth_Count']].copy().iloc[::-1]
                 display_df.rename(columns={'Count': 'Raw Signals', 'Smooth_Count': 'Filtered Avg'}, inplace=True)
                 st.dataframe(display_df, use_container_width=True)
                 
