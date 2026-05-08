@@ -1,43 +1,54 @@
 import streamlit as st
 import pandas as pd
+import requests
 import time
-import plotly.express as px
 
 st.set_page_config(page_title="StudentOS Live", layout="wide")
-
 st.title("📡 StudentOS: Smart Campus Live")
 
-# Use a container so the UI doesn't "jump"
+# The exact same Cloud API URL to pull the data
+CLOUD_URL = "https://dweet.io/get/dweets/for/amc-studentos-shakthi"
 placeholder = st.empty()
 
 while True:
     with placeholder.container():
         try:
-            # Read the full file
-            df = pd.read_csv('crowd_data.csv', names=['Timestamp', 'Count'])
+            # Fetch live data from the Cloud Bridge
+            response = requests.get(CLOUD_URL).json()
             
-            # CALCULATE SMOOTHING
-            df['Smooth_Count'] = df['Count'].rolling(window=3).mean().fillna(df['Count'])
-            
-            # METRICS
-            last_val = int(df['Count'].iloc[-1])
-            avg_val = int(df['Smooth_Count'].iloc[-1])
-            
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Live Signals", last_val)
-            c2.metric("Filtered Avg", avg_val)
-            c3.metric("Status", "🟢 AVAILABLE" if avg_val < 15 else "🔴 CROWDED")
+            if response["this"] == "succeeded":
+                raw_data = response["with"]
+                
+                # Format the cloud data into a table
+                data_list = []
+                for item in raw_data:
+                    time_str = item["created"].split("T")[1][:8]
+                    count_val = item["content"]["count"]
+                    data_list.append({"Timestamp": time_str, "Count": count_val})
+                
+                # Reverse the data so the oldest is first for the graph
+                df = pd.DataFrame(data_list).iloc[::-1].reset_index(drop=True)
+                
+                if not df.empty:
+                    df['Smooth_Count'] = df['Count'].rolling(window=3).mean().fillna(df['Count'])
+                    
+                    last_val = int(df['Count'].iloc[-1])
+                    avg_val = int(df['Smooth_Count'].iloc[-1])
+                    
+                    # Top Metrics
+                    c1, c2, c3 = st.columns(3)
+                    c1.metric("Live Signals", last_val)
+                    c2.metric("Filtered Avg", avg_val)
+                    c3.metric("Status", "🔴 CROWDED" if avg_val >= 25 else "🟢 AVAILABLE")
 
-            # THE CHART (Now with fixed height)
-            st.subheader("Occupancy History (24H)")
-            fig = px.area(df, x='Timestamp', y='Smooth_Count', template="plotly_dark")
-            fig.update_layout(height=400) # Fixed height ensures it doesn't vanish
-            st.plotly_chart(fig, use_container_width=True)
-            
-            st.write("Full Activity Log:")
-            st.dataframe(df.tail(10)) # Shows last 10 for better context
-
+                    # Live Area Chart
+                    st.subheader("Global Occupancy History")
+                    chart_data = df.set_index('Timestamp')
+                    st.area_chart(chart_data['Smooth_Count'], color="#00d1b2")
+            else:
+                st.warning("Waiting for the laptop scanner to send data to the cloud...")
+                
         except Exception as e:
-            st.error("Connecting to sensor...")
+            st.error("Reconnecting to Cloud Server...")
             
-    time.sleep(10)
+    time.sleep(5)
