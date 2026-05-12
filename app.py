@@ -43,7 +43,7 @@ while True:
                 avg_val = int(df['Smooth_Count'].iloc[-1])
                 # Divides signals by 1.2 for a more realistic student count, and ensures it never shows 0 if signals exist
                 # Dense Classroom Multiplier: Accounts for hidden/blocked devices
-                est_students = int(last_raw * 1.8) if last_raw > 0 else 0
+                
                 
                 c1, c2, c3, c4 = st.columns(4)
                 c1.metric("Live Signals", last_raw)
