@@ -24,7 +24,9 @@ while True:
             for line in lines:
                 if line:
                     data = json.loads(line)
-                    if data.get("event") == "message":
+                    # BULLETPROOF SHIELD: Only accept actual messages that are numbers
+                    if data.get("event") == "message" and str(data.get("message", "")).isdigit():
+                        
                         # Convert UTC server time to local time (+5 hours 30 mins)
                         utc_time = datetime.utcfromtimestamp(data["time"])
                         ist_time = utc_time + timedelta(hours=5, minutes=30)
@@ -34,16 +36,15 @@ while True:
                         data_list.append({"Timestamp": t, "Count": c})
             
             if data_list:
-                # Keep chronological order for the graph (Oldest -> Newest)
                 df = pd.DataFrame(data_list)
                 
                 df['Smooth_Count'] = df['Count'].rolling(window=3).mean().fillna(df['Count']).round(1)
                 
                 last_raw = int(df['Count'].iloc[-1])
                 avg_val = int(df['Smooth_Count'].iloc[-1])
-                # Divides signals by 1.2 for a more realistic student count, and ensures it never shows 0 if signals exist
-                # Dense Classroom Multiplier: Accounts for hidden/blocked devices
                 
+                # Balanced Density Multiplier: 1.5 ratio for realistic crowd estimation
+                est_students = int(last_raw * 1.5) if last_raw > 0 else 0
                 
                 c1, c2, c3, c4 = st.columns(4)
                 c1.metric("Live Signals", last_raw)
@@ -56,11 +57,11 @@ while True:
                 st.area_chart(chart_data['Smooth_Count'], color="#00d1b2")
                 
                 st.write("📝 Recent Activity Log:")
-                # FIXED: Grab the newest 5 rows and flip them so the absolute newest is at the very top!
                 display_df = df.tail(5)[['Timestamp', 'Count', 'Smooth_Count']].copy().iloc[::-1]
                 display_df.rename(columns={'Count': 'Raw Signals', 'Smooth_Count': 'Filtered Avg'}, inplace=True)
                 st.dataframe(display_df, use_container_width=True)
                 
+                # THE "IMPRESS MA'AM" FEATURE (Download Data Button)
                 st.write("---")
                 st.download_button(
                     label="📥 Download Live Campus Data (CSV)",
@@ -70,10 +71,10 @@ while True:
                 )
                 
             else:
-                st.info("Waiting for scanner.py to send the first signal...")
+                st.info("Waiting for scanner to send valid data...")
                 
         except Exception as e:
-            st.warning("Connecting to global feed...")
+            # If it breaks, tell us EXACTLY why on the screen
+            st.warning(f"Connection paused. Retrying... (System Error: {e})")
             
     time.sleep(5)
-    
