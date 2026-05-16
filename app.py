@@ -43,8 +43,8 @@ while True:
                 last_raw = int(df['Count'].iloc[-1])
                 avg_val = int(df['Smooth_Count'].iloc[-1])
                 
-                # Balanced Density Multiplier: 1.5 ratio for realistic crowd estimation
-                est_students = int(last_raw * 1.5) if last_raw > 0 else 0
+                # FIXED MATH: 0.85 Ratio (Accounts for users with multiple smart devices)
+                est_students = max(1, int(last_raw * 0.85)) if last_raw > 0 else 0
                 
                 c1, c2, c3, c4 = st.columns(4)
                 c1.metric("Live Signals", last_raw)
@@ -61,7 +61,7 @@ while True:
                 display_df.rename(columns={'Count': 'Raw Signals', 'Smooth_Count': 'Filtered Avg'}, inplace=True)
                 st.dataframe(display_df, use_container_width=True)
                 
-                # THE "IMPRESS MA'AM" FEATURE (Download Data Button)
+                # Download Data Button
                 st.write("---")
                 st.download_button(
                     label="📥 Download Live Campus Data (CSV)",
