@@ -68,6 +68,7 @@ while True:
                     data=df.to_csv(index=False).encode('utf-8'),
                     file_name='campus_occupancy_log.csv',
                     mime='text/csv',
+                    key=f"dl_btn_{int(time.time())}"  # <--- THIS IS THE FIX
                 )
                 
             else:
